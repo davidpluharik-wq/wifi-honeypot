@@ -23,6 +23,7 @@ from datetime import datetime
 
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
+from netsuite_theme import apply_theme, add_header, PANEL_BG, TEXT_BG, GOOD, WARN, MEDIUM, MUTED
 
 # ---------------- Configuration ----------------
 INTERFACE = os.environ.get("HONEYPOT_INTERFACE", "wlan0")
@@ -51,8 +52,7 @@ class HoneypotApp:
     def __init__(self, root):
         self.root = root
         self.root.title("WiFi Honeypot Monitor")
-        self.root.geometry("1000x600")
-        self.root.configure(bg="#1e1e1e")
+        self.root.geometry("1000x780")
 
         self.dnsmasq_proc = None
         self.hostapd_proc = None
@@ -64,40 +64,27 @@ class HoneypotApp:
         self.event_queue = queue.Queue()
 
         self.db_conn = self._init_db()
+        add_header(self.root, "WiFi Honeypot Monitor")
         self._build_ui()
+        apply_theme(self.root)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.after(150, self._poll_queue)
 
     # ---------------- UI ----------------
     def _build_ui(self):
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure("Treeview", background="#252526", foreground="#d4d4d4",
-                         fieldbackground="#252526", rowheight=24, font=("Consolas", 10))
-        style.configure("Treeview.Heading", background="#333333", foreground="white",
-                         font=("Consolas", 10, "bold"))
-        style.map("Treeview", background=[("selected", "#0a5")])
+        top = ttk.Frame(self.root, padding=(10, 8))
+        top.pack(fill="x")
 
-        top = tk.Frame(self.root, bg="#1e1e1e")
-        top.pack(fill="x", padx=10, pady=8)
-
-        self.start_btn = tk.Button(top, text="Start Honeypot", command=self.start_honeypot,
-                                    bg="#2e7d32", fg="white", font=("Segoe UI", 11, "bold"),
-                                    padx=14, pady=6, relief="flat")
+        self.start_btn = ttk.Button(top, text="Start Honeypot", command=self.start_honeypot)
         self.start_btn.pack(side="left", padx=(0, 8))
 
-        self.stop_btn = tk.Button(top, text="Stop", command=self.stop_honeypot,
-                                   bg="#b71c1c", fg="white", font=("Segoe UI", 11, "bold"),
-                                   padx=14, pady=6, relief="flat", state="disabled")
+        self.stop_btn = ttk.Button(top, text="Stop", command=self.stop_honeypot, state="disabled")
         self.stop_btn.pack(side="left", padx=(0, 8))
 
-        self.status_label = tk.Label(top, text="Status: idle", bg="#1e1e1e", fg="#aaaaaa",
-                                      font=("Segoe UI", 11))
+        self.status_label = ttk.Label(top, text="Status: idle", foreground=MUTED)
         self.status_label.pack(side="left", padx=12)
 
-        clear_btn = tk.Button(top, text="Clear Table", command=self.clear_table,
-                               bg="#37474f", fg="white", relief="flat", padx=10)
-        clear_btn.pack(side="right")
+        ttk.Button(top, text="Clear Table", command=self.clear_table).pack(side="right")
 
         # Device table
         columns = ("time", "event", "ip", "mac", "hostname", "detail")
@@ -111,12 +98,9 @@ class HoneypotApp:
         self.tree.pack(fill="both", expand=True, padx=10, pady=(0, 8))
 
         # Raw log output
-        log_label = tk.Label(self.root, text="Raw log", bg="#1e1e1e", fg="#888888",
-                              font=("Segoe UI", 9))
-        log_label.pack(anchor="w", padx=12)
-        self.log_box = scrolledtext.ScrolledText(self.root, height=8, bg="#111111",
-                                                   fg="#8bc34a", font=("Consolas", 9),
-                                                   insertbackground="white")
+        ttk.Label(self.root, text="Raw log", foreground=MUTED).pack(anchor="w", padx=12)
+        self.log_box = scrolledtext.ScrolledText(self.root, height=8, bg=TEXT_BG, fg=GOOD,
+                                                   font=("DejaVu Sans Mono", 9), insertbackground="white")
         self.log_box.pack(fill="both", expand=False, padx=10, pady=(0, 10))
         self.log_box.configure(state="disabled")
 
@@ -142,8 +126,8 @@ class HoneypotApp:
         self.log_box.see("end")
         self.log_box.configure(state="disabled")
 
-    def _set_status(self, text, color="#aaaaaa"):
-        self.status_label.config(text=f"Status: {text}", fg=color)
+    def _set_status(self, text, color=MUTED):
+        self.status_label.config(text=f"Status: {text}", foreground=color)
 
     # ---------------- Startup sequence ----------------
     def start_honeypot(self):
@@ -163,7 +147,7 @@ class HoneypotApp:
                 return
         self.stop_flag.clear()
         self.start_btn.config(state="disabled")
-        self._set_status("starting…", "#ffb300")
+        self._set_status("starting…", MEDIUM)
         self._append_log("=== Starting honeypot sequence ===")
 
         self.startup_thread = threading.Thread(target=self._startup_sequence, daemon=True)
@@ -240,10 +224,10 @@ class HoneypotApp:
                 elif kind == "raw":
                     self._append_log(payload)
                 elif kind == "status_running":
-                    self._set_status("running — waiting for connections", "#66bb6a")
+                    self._set_status("running — waiting for connections", GOOD)
                     self.stop_btn.config(state="normal")
                 elif kind == "status_error":
-                    self._set_status(payload, "#ef5350")
+                    self._set_status(payload, WARN)
                     self.start_btn.config(state="normal")
         except queue.Empty:
             pass
